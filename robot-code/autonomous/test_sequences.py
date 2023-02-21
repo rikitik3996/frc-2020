@@ -2,7 +2,7 @@ from .base_auto import BaseAuto
 
 from magicbot.state_machine import state, timed_state, AutonomousStateMachine
 
-from components import swervedrive
+from components import tank_drive_driver
 # from common import vision
 
 """
@@ -96,7 +96,7 @@ class TunePID(BaseAuto):
     DEFAULT = True
 
     # Injection
-    drive: swervedrive.SwerveDrive
+    drive: tank_drive_driver.TankDriveDriver
 
     @timed_state(duration=1, next_state="drive_backward", first=True)
     def drive_forward(self):

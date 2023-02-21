@@ -1,6 +1,6 @@
 from magicbot.state_machine import state, timed_state, AutonomousStateMachine
 
-from components import swervedrive
+from components import tank_drive_driver
 
 class BaseAuto(AutonomousStateMachine):
     """
@@ -9,7 +9,7 @@ class BaseAuto(AutonomousStateMachine):
     Flushing the drive system reduces potential errrors.
     """
 
-    drive: swervedrive.SwerveDrive
+    drive: tank_drive_driver.TankDriveDriver
 
     @state
     def failed(self):

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
+import os, pwd
+os.getlogin = lambda: pwd.getpwuid(os.getuid())[0]
 
 import wpilib   # Librairie de base de la FRC
 import ctre     # Librairie pour les produits de Cross The Road Electronics
 import rev      # Librairie pour les produits de REV Robotics
 from magicbot import MagicRobot # La modele de programmation de notre robot. Magic robot
 from robotpy_ext.autonomous.selector import AutonomousModeSelector # Crée les modes automatiques à partir des fichier dans ./autonomous/*.py. Sélectionnable depuis le SmartDashbaord
-from ntcore import NetworkTableInstance     # Outils pour les NetworkTables
-# from networktables.util import ntproperty   # Outils pour les NetworkTables
-from components import swervedrive, swervemodule, intake_driver    # Nos composantes logiciels. Permet de grouper les composantes par fonctionalitée
-from common import vision                           # Du code générique qui peut nous servir à différente place
+from components import canon_driver, intake_driver, tank_drive_driver    # Nos composantes logiciels. Permet de grouper les composantes par fonctionalitée
+from common.limelight import Limelight
 from navx import AHRS  # C'est NavX(giro)
-import ntcore
+import ntcore   # NetworkTables
 
 class MyRobot(MagicRobot):
     """
@@ -41,78 +41,53 @@ class MyRobot(MagicRobot):
     #Spark MAX Motor Controller: CAN ID 7 - Left Canon
     #Spark MAX Motor Controller: CAN ID 8 - Right Canon
 
-
-
-
-
-    navx: AHRS
-
-   
-
+    drive: tank_drive_driver.TankDriveDriver
+    canon: canon_driver.CanonDriver
+    intake: intake_driver.IntakeDriver
 
     def createObjects(self):
         """
         This is where all the components are actually created with "=" sign.
         Components with a parent prefix like "shooter_" will be injected.
         """
+        # Drivetrain
+        self.drive_leftMotor1 = ctre.WPI_TalonFX(1)
+        self.drive_leftMotor2 = ctre.WPI_TalonFX(2)
+        self.drive_rightMotor1 = ctre.WPI_TalonFX(3)
+        self.drive_rightMotor2 = ctre.WPI_TalonFX(4)
 
-       
-        # Gamepad
-        self.gamepad1 = wpilib.Joystick(0)
-        # self.gamepad2 = wpilib.Joystick(1)
-
-        # Left Motor
-        self.leftMotor1 = ctre.WPI_TalonFX(1)
-        self.leftMotor2 = ctre.WPI_TalonFX(2)
-
-        # Right Motor
-        self.rightMotor1 = ctre.WPI_TalonFX(3)
-        self.rightMotor2 = ctre.WPI_TalonFX(4)
-    
-         #Navx initalize
-        self.navx = AHRS.create_spi()
-
-        # ShuffleBoard ####################################################
-        self.configTab = ntcore.NetworkTableInstance.getDefault().getTable("Config")
-
-        self.configTab.putNumber("Pid Kp", 0.01)
-        self.configTab.putNumber("Pid Ki", 0)
-        self.configTab.putNumber("Pid Kd", 0)
-
-        #######################################################################
-        
-
+        # Canon
+        self.canon_leftMotor = ctre.WPI_TalonFX(7)
+        self.canon_rightMotor = ctre.WPI_TalonFX(8)
 
         # Intake
-        # self.intake_motor = ctre.WPI_VictorSPX(6)
+        self.intake_sorterMotor = ctre.VictorSPX(10)
+        self.intake_BeltMotor = ctre.TalonSRX(9)
+        self.intake_intakeMotor = ctre.TalonSRX(11)
+        self.intake_limitSwitchStart = wpilib.DigitalInput(0)
+        self.intake_limitSwitchStop = wpilib.DigitalInput(1)
 
-        # Wheel of Fortune
-        # self.wof_motor = ctre.WPI_VictorSPX(13)
+        # NetworkTable
+        self.nt = ntcore.NetworkTableInstance.getDefault().getTable("SmartDashboard")
 
-        # Climber
-        # self.climbingMotor = ctre.WPI_VictorSPX(10)
-        # self.hookMotor = ctre.WPI_VictorSPX(1)
+        # General
+        self.pdp = wpilib.PowerDistribution(21, wpilib.PowerDistribution.ModuleType.kCTRE)
+        self.pcm = wpilib.PneumaticsControlModule(30)
+        self.navx = AHRS.create_spi()
+        self.pixie_offset = wpilib.AnalogInput(0)
+        self.pixie_valid = wpilib.DigitalInput(2)
+        self.limelight = Limelight()
 
-        # Color Sensor
-        #self.colorSensor = color_sensor.ColorSensor()
-
-        # Vision
-        # self.vision = vision.Vision()
-
-        # Limit Switch
-        # self.switch = wpilib.DigitalInput(0)
-
-        # PDP
-        self.pdp = wpilib.PowerDistribution()
+        # Gamepad
+        self.gamepad1 = wpilib.Joystick(0)
 
     def disabledPeriodic(self):
         # Update the dashboard, even when the robot is disabled.
         self.update_sd()
 
-    # def autonomousInit(self):
-    #     # Reset the drive when the auto starts.
-    #     self.drive.flush()ss
-    #     self.drive.threshold_input_vectors = True
+    def autonomousInit(self):
+        # Reset the drive when the auto starts
+        pass
 
     def autonomous(self):
         # For auto, use MagicBot's auto mode.
@@ -120,124 +95,36 @@ class MyRobot(MagicRobot):
         super().autonomous()
 
     def teleopInit(self):
-        self.NavxZero = self.navx.getPitch()
-        # Reset the drive when the teleop starts.
-        self.NavxYawZero = self.navx.getYaw()
-        print(self.NavxYawZero)
-        # self.drive.NavxYawZero = self.NavxYawZero
-        # self.drive.flush()
-        # self.drive.squared_inputs = True
-        # self.drive.threshold_input_vectors = True
-
-        # self.sd.putNumber('test/val ue', 0)
-
-    def move(self, fwd, straff, rcw):
-        """
-        This function is ment to be used by the teleOp.
-        :param x: Velocity in x axis [-1, 1]
-        :param y: Velocity in y axis [-1, 1]
-        :param rcw (Rotation clockwise): Velocity in z axis [-1, 1]
-        """
-
-        # self.drive.move(fwd, straff, rcw)
+        pass
 
     def teleopPeriodic(self):
-
-        
-        NavxPitch = self.navx.getPitch() - self.NavxZero
-        #Mettre le NavX à zéro grâce à la gachette
-        if self.gamepad1.getRawButton(10):
-            self.NavxYawZero = self.navx.getYaw
-
-
-        # Drive
-        # self.gamepad1.getRawAxis(0) == Left joystick, X axis
-        # self.gamepad1.getRawAxis(1) == Left joystick, Y axis
-        # self.gamepad1.getRawAxis(5) == Right joystick, Y axis
-        # self.gamepad1.getRawAxis(4) == Right joystick, X axis
-        if self.gamepad1.getRawButton(4):
-            print(NavxPitch)
-            self.move(NavxPitch / 10, 0, 0)
-        elif self.gamepad1.getRawButton(7):
-            print("button pressed")
-
+        if self.gamepad1.getRawButton(1):
+            self.drive.pixie_drive()
+            self.intake.intake_request()
+        elif self.gamepad1.getRawButton(2):
+            self.drive.limelight_drive()
+            if self.limelight.targetReady():
+                self.canon.shoot()
         else:
-            self.fwd.append(-self.gamepad1.getRawAxis(1))
-            self.straff.append(self.gamepad1.getRawAxis(0))
-            self.rot.append(self.gamepad1.getRawAxis(4))
+            self.drive.move(self.gamepad1.getRawAxis(1) * -1, self.gamepad1.getRawAxis(5) * -1)
+        self.nt.putNumber('gamepad1/axis/0', self.gamepad1.getRawAxis(0))
+        self.nt.putNumber('gamepad1/axis/1', self.gamepad1.getRawAxis(1))
+        self.nt.putNumber('gamepad1/axis/2', self.gamepad1.getRawAxis(2))
+        self.nt.putNumber('gamepad1/axis/3', self.gamepad1.getRawAxis(3))
+        self.nt.putNumber('gamepad1/axis/4', self.gamepad1.getRawAxis(4))
+        self.nt.putNumber('gamepad1/axis/5', self.gamepad1.getRawAxis(5))
 
-            average_samples = 5
-            self.fwd = self.fwd[-average_samples:]
-            self.straff = self.straff[-average_samples:]
-            self.rot = self.rot[-average_samples:]
+        self.nt.putNumber('gamepad1/buttons/1', self.gamepad1.getRawButton(1))
+        self.nt.putNumber('gamepad1/buttons/2', self.gamepad1.getRawButton(2))
+        self.nt.putNumber('gamepad1/buttons/3', self.gamepad1.getRawButton(3))
+        self.nt.putNumber('gamepad1/buttons/4', self.gamepad1.getRawButton(4))
 
-            fwd = sum(self.fwd)/len(self.fwd)
-            straff = sum(self.straff)/len(self.straff)
-            rot = sum(self.rot)/len(self.rot)
-
-            self.move(fwd, straff, rot)
-        # print(self.frontLeftModule_encoder.getAbsolutePosition(),
-        #         self.frontRightModule_encoder.getAbsolutePosition(),
-        #         self.rearLeftModule_encoder.getAbsolutePosition(),
-        #         self.rearRightModule_encoder.getAbsolutePosition())
-        # Lock
-        #  if self.gamepad1.getRawButton(1):
-        #     self.drive.request_wheel_lock = True
-
-        # # Vectoral Button Drive
-        # if self.gamepad1.getPOV() == 0:
-        #     self.drive.set_raw_fwd(-0.99)
-        # elif self.gamepad1.getPOV() == 180:
-        #     self.drive.set_raw_fwd(0.99)
-        # elif self.gamepad1.getPOV() == 90:
-        #     self.drive.set_raw_strafe(0.99)
-        # elif self.gamepad1.getPOV() == 270:
-        #     self.drive.set_raw_strafe(-0.99)
+        self.nt.putNumber('navx/pitch', self.navx.getPitch())
+        self.nt.putNumber('navx/yaw', self.navx.getYaw())
+        self.nt.putNumber('navx/roll', self.navx.getRoll())
+        self.nt.putNumber('navx/angle', self.navx.getAngle())
 
 
-        # print("NavX Gyro", self.navx.getYaw, self.navx.getPitch(), self.navx.getRoll(),"Angle ", self.navx.getAngle())
-
-        # Climber
-        # if self.gamepad2.getRawButton(1):
-        #     self.climbingMotor.set(1)
-        # else:
-        #     self.climbingMotor.set(0)
-
-        # Hook
-        # if self.gamepad2.getRawAxis(5) < 0 and not self.switch.get():
-        #     self.hookMotor.set(self.gamepad2.getRawAxis(5))
-        # elif self.gamepad2.getRawAxis(5) > 0:
-        #     self.hookMotor.set(self.gamepad2.getRawAxis(5))
-        # else:
-        #     self.hookMotor.set(0)
-
-        # Shooter
-        # if self.gamepad1.getRawAxis(3) > 0:
-        #     self.shooter.shoot()
-        # elif self.gamepad1.getRawButton(6):
-        #     self.shooter.align()
-        # elif self.gamepad1.getRawButton(5) or self.gamepad2.getRawAxis(2) > 0:
-        #     self.shooter.unload()
-        # elif self.gamepad1.getRawAxis(2) > 0 or self.gamepad2.getRawAxis(3) > 0:
-        #     self.shooter.intake()
-        # else:
-        #     self.shooter.stop()
-
-        # WoF
-        # if self.gamepad2.getRawButton(3):
-        #     self.wof.handleFirstStage()
-        # elif self.gamepad2.getRawButton(2):
-        #     self.wof.handleSecondStage()
-        # elif self.gamepad2.getRawButton(4):
-        #     self.wof.reset()
-        # elif self.gamepad2.getRawButton(5):
-        #     self.wof.manualTurn(1)
-        # elif self.gamepad2.getRawButton(6):
-        #     self.wof.manualTurn(-1)
-        # else:
-        #     self.wof.manualTurn(0)
-
-        # Update smartdashboard
         self.update_sd()
 
     def update_sd(self):
@@ -245,12 +132,9 @@ class MyRobot(MagicRobot):
         Calls each component's own update function
         and puts data to the smartdashboard.
         """
-        # self.sd.putNumber('Climb_Current_Draw', self.pdp.getCurrent(10))
+        self.nt.putNumber('test', 123)
+        # self.configTab.putNumber('Channel 0 current', self.pdp.getCurrent(0))
         return
-        # self.drive.update_smartdash()
-        #self.colorSensor.updateSD()
-        # self.wof.updateSD()
-        # self.vision.updateTable()
 
 if __name__ == "__main__":
     wpilib.run(MyRobot)

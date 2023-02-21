@@ -1,28 +1,14 @@
-import wpilib
 import math
+import ntcore
 
-from components import swervedrive
-# from networktables import NetworkTables
-# from networktables.util import ntproperty
-
-class Vision():
+class Limelight:
     # Main networktable
-    # table = NetworkTables.getTable('limelight')
-    # Horizontal offset from croshair to target in degrees
-    # tx = ntproperty('/limelight/tx', 0)
-    # Vertical offset from croshair to target in degress
-    # ty = ntproperty('/limelight/ty', 0)
-    # Whether the limelight has any valid targets
-    # tv = ntproperty('/limelight/tv', 0)
-
-    KpHorizontal = -0.6 # Proportional control constant for adjustment in horizontal
-    KpVertical = -0.3 # Proportional control constant for adjustment in vertical
+    table = ntcore.NetworkTableInstance.getDefault().getTable('limelight')
 
     cam_height = 38.5 # Camera's height from the ground in inches
     cam_angle = 70 # Camera's angle from the horizontal in degrees
 
     target_height = 98.25 # Target's mid-point's height from the ground in inches
-    target_distance = 120 # Desired distance from the wall to shoot
 
     debug = True
 
@@ -87,3 +73,14 @@ class Vision():
             self.table.putNumber('Drive', self.verticalAdjust())
             self.table.putNumber('Rotate', self.horizontalAdjust())
             self.table.putNumber('Distance', self.getDistance())
+
+    def valid_target(self):
+        return self.table.getNumber('tv', 0)
+
+    def get_target_x_offset(self):
+        return self.table.getNumber('tx', 0)
+
+    def targetReady(self):
+        if abs(self.get_target_x_offset()) < 10:
+            return True
+        return False
