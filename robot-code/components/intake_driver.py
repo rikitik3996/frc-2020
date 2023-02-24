@@ -7,8 +7,8 @@ from navx import AHRS #Navx
 
 class IntakeDriver:
     # These modules will be injected from ../robot.py
-    sorterMotor: ctre.VictorSPX
-    BeltMotor: ctre.TalonSRX
+    sorterMotor: ctre.TalonSRX
+    BeltMotor: ctre.VictorSPX
     intakeMotor: ctre.TalonSRX
     limitSwitchStart: wpilib.DigitalInput
     limitSwitchStop: wpilib.DigitalInput
@@ -50,6 +50,6 @@ class IntakeDriver:
 
         if self.limitSwitchStart.get():
             self.BeltMotor.set(0.2)
-            self.sorterMotor.set(0.5)
+            self.sorterMotor.set(ctre.ControlMode.PercentOutput, 30)
         else:
-            self.sorterMotor.set(0)
+            self.sorterMotor.set(ctre.ControlMode.PercentOutput, 0)

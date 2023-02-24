@@ -74,13 +74,16 @@ class Limelight:
             self.table.putNumber('Rotate', self.horizontalAdjust())
             self.table.putNumber('Distance', self.getDistance())
 
-    def valid_target(self):
-        return self.table.getNumber('tv', 0)
+    def get_target_valid(self):
+        return self.table.getNumber('tv', 0) == 1
 
     def get_target_x_offset(self):
         return self.table.getNumber('tx', 0)
 
     def targetReady(self):
-        if abs(self.get_target_x_offset()) < 10:
+        if self.get_target_valid() is False:
+            return False
+        
+        if abs(self.get_target_x_offset()) < 2:
             return True
         return False

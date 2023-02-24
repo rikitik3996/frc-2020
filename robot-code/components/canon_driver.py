@@ -1,12 +1,12 @@
-import ctre
+import rev
 from magicbot import magiccomponent
 
 from navx import AHRS #Navx
 
 class CanonDriver:
     # These modules will be injected from ../robot.py
-    leftMotor: ctre.WPI_TalonFX
-    rightMotor: ctre.WPI_TalonFX
+    leftMotor: rev.CANSparkMax
+    rightMotor: rev.CANSparkMax
 
     def setup(self):
         """

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import os, pwd
-os.getlogin = lambda: pwd.getpwuid(os.getuid())[0]
+# import os, pwd
+# os.getlogin = lambda: pwd.getpwuid(os.getuid())[0]
 
 import wpilib   # Librairie de base de la FRC
 import ctre     # Librairie pour les produits de Cross The Road Electronics
@@ -31,9 +31,9 @@ class MyRobot(MagicRobot):
 
     # PCM: CAN ID 30
     # PDP: CAN ID 21
-    # Talon SRX: CAN ID 11
-    # Talon SRX: CAN ID 9
-    # Victor SPX: CAN ID 10
+    # Talon SRX: CAN ID 11 - Sorter motors
+    # Talon SRX: CAN ID 9 - Intake motor
+    # Victor SPX: CAN ID 10 - Belt motor
     #Spark MAX Motor Controller: CAN ID 1 - Left Wheel
     #Spark MAX Motor Controller: CAN ID 2 - Left Wheel
     #Spark MAX Motor Controller: CAN ID 3 - Right Wheel
@@ -51,19 +51,19 @@ class MyRobot(MagicRobot):
         Components with a parent prefix like "shooter_" will be injected.
         """
         # Drivetrain
-        self.drive_leftMotor1 = ctre.WPI_TalonFX(1)
-        self.drive_leftMotor2 = ctre.WPI_TalonFX(2)
-        self.drive_rightMotor1 = ctre.WPI_TalonFX(3)
-        self.drive_rightMotor2 = ctre.WPI_TalonFX(4)
+        self.drive_leftMotor1 = rev.CANSparkMax(1, rev.CANSparkMax.MotorType.kBrushless)
+        self.drive_leftMotor2 = rev.CANSparkMax(2, rev.CANSparkMax.MotorType.kBrushless)
+        self.drive_rightMotor1 = rev.CANSparkMax(3, rev.CANSparkMax.MotorType.kBrushless)
+        self.drive_rightMotor2 = rev.CANSparkMax(4, rev.CANSparkMax.MotorType.kBrushless)
 
         # Canon
-        self.canon_leftMotor = ctre.WPI_TalonFX(7)
-        self.canon_rightMotor = ctre.WPI_TalonFX(8)
+        self.canon_leftMotor = rev.CANSparkMax(7, rev.CANSparkMax.MotorType.kBrushless)
+        self.canon_rightMotor = rev.CANSparkMax(8, rev.CANSparkMax.MotorType.kBrushless)
 
         # Intake
-        self.intake_sorterMotor = ctre.VictorSPX(10)
-        self.intake_BeltMotor = ctre.TalonSRX(9)
-        self.intake_intakeMotor = ctre.TalonSRX(11)
+        self.intake_BeltMotor = ctre.VictorSPX(10)
+        self.intake_intakeMotor = ctre.TalonSRX(9)
+        self.intake_sorterMotor = ctre.TalonSRX(11)
         self.intake_limitSwitchStart = wpilib.DigitalInput(0)
         self.intake_limitSwitchStop = wpilib.DigitalInput(1)
 
@@ -98,6 +98,7 @@ class MyRobot(MagicRobot):
         pass
 
     def teleopPeriodic(self):
+        self.update_sd()
         if self.gamepad1.getRawButton(1):
             self.drive.pixie_drive()
             self.intake.intake_request()
@@ -106,7 +107,15 @@ class MyRobot(MagicRobot):
             if self.limelight.targetReady():
                 self.canon.shoot()
         else:
-            self.drive.move(self.gamepad1.getRawAxis(1) * -1, self.gamepad1.getRawAxis(5) * -1)
+            self.drive.move(-self.gamepad1.getRawAxis(1), -self.gamepad1.getRawAxis(5))
+
+
+
+    def update_sd(self):
+        """
+        Calls each component's own update function
+        and puts data to the smartdashboard.
+        """
         self.nt.putNumber('gamepad1/axis/0', self.gamepad1.getRawAxis(0))
         self.nt.putNumber('gamepad1/axis/1', self.gamepad1.getRawAxis(1))
         self.nt.putNumber('gamepad1/axis/2', self.gamepad1.getRawAxis(2))
@@ -123,16 +132,12 @@ class MyRobot(MagicRobot):
         self.nt.putNumber('navx/yaw', self.navx.getYaw())
         self.nt.putNumber('navx/roll', self.navx.getRoll())
         self.nt.putNumber('navx/angle', self.navx.getAngle())
+        
+        self.nt.putNumber('intake/limit_switch_start', self.intake_limitSwitchStart.get())
+        self.nt.putNumber('intake/limit_switch_stop', self.intake_limitSwitchStop.get())
 
-
-        self.update_sd()
-
-    def update_sd(self):
-        """
-        Calls each component's own update function
-        and puts data to the smartdashboard.
-        """
-        self.nt.putNumber('test', 123)
+        self.nt.putNumber('pixie/valid', self.pixie_valid.get())
+        self.nt.putNumber('pixie/offset', self.pixie_offset.getValue())
         # self.configTab.putNumber('Channel 0 current', self.pdp.getCurrent(0))
         return
 
